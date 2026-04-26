@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from routers import upload, analyze, mitigate, report, gemini_chat
+from routers import upload, analyze, mitigate, report, gemini_chat, explain
 
 load_dotenv()
 
@@ -51,6 +51,7 @@ def create_app() -> FastAPI:
     app.include_router(mitigate.router, prefix="/api")
     app.include_router(report.router, prefix="/api")
     app.include_router(gemini_chat.router, prefix="/api")
+    app.include_router(explain.router, prefix="/api")
 
     # ── Health check ─────────────────────────────────────────────────────────
     @app.get("/api/health", tags=["Health"])
