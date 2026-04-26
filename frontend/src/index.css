@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base ───────────────────────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    background-color: #0F172A;
+    color: #F1F5F9;
+    font-family: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    min-height: 100vh;
+  }
+
+  #root {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
+/* ── Custom scrollbar ───────────────────────────────────────────────────────── */
+@layer utilities {
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #1E293B;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #14B8A6;
+    border-radius: 9999px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #0d9488;
+  }
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #14B8A6 #1E293B;
+  }
+}
+
+/* ── Glassmorphism card ──────────────────────────────────────────────────────── */
+@layer components {
+  .glass-card {
+    background: rgba(38, 51, 73, 0.7);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    border-radius: 1rem;
+  }
+
+  .gradient-border {
+    position: relative;
+  }
+
+  .gradient-border::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(135deg, #14B8A6, #818CF8);
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  .btn-primary {
+    @apply bg-accent text-primary font-semibold px-5 py-2.5 rounded-lg
+           hover:bg-teal-400 active:scale-95 transition-all duration-200
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply bg-surface text-textPrimary font-medium px-5 py-2.5 rounded-lg
+           border border-white/10 hover:border-accent/50 hover:bg-card
+           active:scale-95 transition-all duration-200;
+  }
+
+  .input-base {
+    @apply bg-surface border border-white/10 rounded-lg px-4 py-2.5
+           text-textPrimary placeholder-textSecondary
+           focus:outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent/50
+           transition-all duration-200 w-full;
+  }
+
+  .section-label {
+    @apply text-xs font-semibold uppercase tracking-widest text-textSecondary mb-3;
+  }
+}
