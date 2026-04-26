@@ -88,6 +88,7 @@ async def get_action_plan(
 
     try:
         plan = gemini.get_action_plan(session)
+        session["action_plan"] = plan
         return {"action_plan": plan}
     except Exception as exc:
         raise HTTPException(

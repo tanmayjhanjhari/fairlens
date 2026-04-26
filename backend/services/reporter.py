@@ -350,32 +350,36 @@ class ReportGenerator:
             rew_after = rew.get("after", {})
             thr_after = thr.get("after", {})
 
+            def _get_m(d, key):
+                if d is None: return None
+                return d.get(key.upper(), d.get(key.lower()))
+
             comparison_rows = [
                 ["Metric", "Original", "After Reweighing", "After Threshold Adj."],
                 ["SPD",
-                 _fmt(rew_before.get("spd")),
-                 _fmt(rew_after.get("spd")),
-                 _fmt(thr_after.get("spd"))],
+                 _fmt(_get_m(rew_before, "spd")),
+                 _fmt(_get_m(rew_after, "spd")),
+                 _fmt(_get_m(thr_after, "spd"))],
                 ["DI",
-                 _fmt(rew_before.get("di")),
-                 _fmt(rew_after.get("di")),
-                 _fmt(thr_after.get("di"))],
+                 _fmt(_get_m(rew_before, "di")),
+                 _fmt(_get_m(rew_after, "di")),
+                 _fmt(_get_m(thr_after, "di"))],
                 ["EOD",
-                 _fmt(rew_before.get("eod")),
-                 _fmt(rew_after.get("eod")),
-                 _fmt(thr_after.get("eod"))],
+                 _fmt(_get_m(rew_before, "eod")),
+                 _fmt(_get_m(rew_after, "eod")),
+                 _fmt(_get_m(thr_after, "eod"))],
                 ["AOD",
-                 _fmt(rew_before.get("aod")),
-                 _fmt(rew_after.get("aod")),
-                 _fmt(thr_after.get("aod"))],
+                 _fmt(_get_m(rew_before, "aod")),
+                 _fmt(_get_m(rew_after, "aod")),
+                 _fmt(_get_m(thr_after, "aod"))],
                 ["Accuracy",
-                 _fmt(rew_before.get("accuracy")),
-                 _fmt(rew_after.get("accuracy")),
-                 _fmt(thr_after.get("accuracy"))],
+                 _fmt(_get_m(rew_before, "accuracy")),
+                 _fmt(_get_m(rew_after, "accuracy")),
+                 _fmt(_get_m(thr_after, "accuracy"))],
                 ["F1",
-                 _fmt(rew_before.get("f1")),
-                 _fmt(rew_after.get("f1")),
-                 _fmt(thr_after.get("f1"))],
+                 _fmt(_get_m(rew_before, "f1")),
+                 _fmt(_get_m(rew_after, "f1")),
+                 _fmt(_get_m(thr_after, "f1"))],
             ]
             story.append(self._table(comparison_rows))
             story.append(Spacer(1, 0.4 * cm))
@@ -415,11 +419,26 @@ class ReportGenerator:
         # ── Gemini recommendations ────────────────────────────────────────────
         gemini_explanations: dict = sd.get("gemini_explanations", {})
         if gemini_explanations:
-            story.append(Paragraph("AI Recommendations", h2))
+            story.append(Paragraph("Bias Narrative", h2))
             for attr, expl_text in gemini_explanations.items():
                 story.append(Paragraph(f"<b>{attr}:</b>", body))
                 story.append(Paragraph(expl_text.replace("\n\n", "<br/><br/>"), body))
                 story.append(Spacer(1, 0.2 * cm))
+
+        # ── AI Action Plan ────────────────────────────────────────────────────
+        action_plan = sd.get("action_plan")
+        if not action_plan:
+            try:
+                from services.gemini_service import GeminiService
+                gemini = GeminiService()
+                action_plan = gemini.get_action_plan(sd)
+            except Exception:
+                action_plan = "No action plan available."
+
+        if action_plan:
+            story.append(Paragraph("AI Action Plan", h2))
+            story.append(Paragraph(action_plan.replace("\n\n", "<br/><br/>"), body))
+            story.append(Spacer(1, 0.2 * cm))
 
         # ── Footer ────────────────────────────────────────────────────────────
         story.append(Spacer(1, 0.6 * cm))
