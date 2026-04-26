@@ -20,8 +20,8 @@ ByUs bridges the gap between raw fairness metrics and actionable insights by com
 
 ## 2. Core Features
 
-### Feature 1 — CSV Upload with Instant Column Detection and Type Analysis
-- Drag-and-drop or click-to-upload interface supporting `.csv` files
+### Feature 1 — Multi-format Dataset Upload with Instant Column Detection and Type Analysis
+- Drag-and-drop or click-to-upload interface supporting `.csv`, `.xlsx`, `.xls`, `.json`, `.zip`, `.parquet`, `.tsv`, and `.txt` files
 - Automatic detection of column names, data types (numeric, categorical, boolean, datetime)
 - Instant preview table showing first 10 rows
 - Column cardinality stats (unique values, null %, distribution summary)

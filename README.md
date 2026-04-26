@@ -11,7 +11,7 @@
 
 ## What is ByUs?
 
-ByUs is an open-source web platform that helps you detect, understand, and fix bias in your datasets and machine learning models. Upload a CSV, select your target variable and sensitive attributes, and ByUs will:
+ByUs is an open-source web platform that helps you detect, understand, and fix bias in your datasets and machine learning models. Upload your dataset (CSV, Excel, JSON, ZIP, and more), select your target variable and sensitive attributes, and ByUs will:
 
 - Compute industry-standard fairness metrics (SPD, DI, EOD, AOD)
 - Auto-detect your dataset's domain (hiring, lending, healthcare, education) using Gemini AI
@@ -185,7 +185,7 @@ Key endpoints:
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/upload` | Upload CSV dataset |
+| POST | `/api/upload` | Upload dataset (CSV, Excel, JSON, ZIP, Parquet, etc.) |
 | POST | `/api/upload-model` | Upload ML model (.pkl/.joblib) |
 | POST | `/api/validate` | Validate dataset compatibility |
 | POST | `/api/detect-scenario` | AI scenario detection |
