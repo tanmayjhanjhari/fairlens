@@ -126,9 +126,7 @@ class BiasMitigator:
                     "weight": round(w, 4)
                 })
 
-        for i, row in enumerate(df_clean.itertuples(index=False)):
-            g = getattr(row, '__sens__')
-            l = getattr(row, '__target__')
+        for i, (g, l) in enumerate(zip(df_clean['__sens__'].values, df_clean['__target__'].values)):
             weights[i] = weight_map.get((g, l), 1.0)
 
         X = df_clean[feature_cols].values

@@ -99,7 +99,7 @@ Do NOT start with 'Sure' or 'Certainly' or 'Of course'."""
             response = _model.generate_content(prompt)
             return response.text.strip()
         except Exception:
-            return "An error occurred while communicating with the AI. Please try again."
+            return plain_reason
 
     # ── Action Plan ───────────────────────────────────────────────────────────
 
