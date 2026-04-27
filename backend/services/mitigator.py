@@ -74,7 +74,7 @@ class BiasMitigator:
         # Fill NA with 0 for features
         df_clean[feature_cols] = df_clean[feature_cols].fillna(0)
 
-        rew = self.reweigh(df_clean, feature_cols)
+        rew = self.reweigh(df, target_col, sensitive_attr)
         thr = self.threshold_adjust(df_clean, feature_cols)
 
         # Winner: best SPD reduction while keeping accuracy drop < 3%
