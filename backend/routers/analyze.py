@@ -129,7 +129,20 @@ async def analyze(
             )
 
         try:
-            X = df[feature_cols].fillna(0)
+            X = df[feature_cols].copy()
+            
+            # Auto-encode any string/categorical columns to prevent "could not convert string to float" errors
+            from sklearn.preprocessing import LabelEncoder
+            for c in X.columns:
+                if X[c].dtype == 'object' or X[c].dtype.name == 'category' or X[c].dtype == 'bool':
+                    try:
+                        # Try to cast to float first in case it's just numeric strings
+                        X[c] = X[c].astype(float)
+                    except ValueError:
+                        # Fallback to label encoding (alphabetical)
+                        X[c] = LabelEncoder().fit_transform(X[c].astype(str))
+
+            X = X.fillna(0)
             predictions = model.predict(X)
             df["__predictions__"] = predictions
             use_predictions = True
