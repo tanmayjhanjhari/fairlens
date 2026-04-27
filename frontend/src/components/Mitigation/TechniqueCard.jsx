@@ -163,10 +163,10 @@ export default function TechniqueCard({ name, data, isWinner, winnerReason }) {
             </div>
             
             <div className="flex gap-3 items-start">
-              <BarChart2 size={16} className={
+              <BarChart2 size={16} className={`${
                 (effects.bias_reduction_pct || 0) > 50 ? "text-success" : 
                 (effects.bias_reduction_pct || 0) >= 10 ? "text-warning" : "text-danger"
-              } mt-0.5 />
+              } mt-0.5`} />
               <p className={`text-xs leading-relaxed ${
                 (effects.bias_reduction_pct || 0) > 50 ? "text-success-light" : 
                 (effects.bias_reduction_pct || 0) >= 10 ? "text-warning-light" : "text-danger-light"
@@ -176,10 +176,10 @@ export default function TechniqueCard({ name, data, isWinner, winnerReason }) {
             </div>
 
             <div className="flex gap-3 items-start">
-              <Zap size={16} className={
+              <Zap size={16} className={`${
                 (effects.accuracy_retained_pct || 0) > 98 ? "text-success" : 
                 (effects.accuracy_retained_pct || 0) >= 90 ? "text-warning" : "text-danger"
-              } mt-0.5 />
+              } mt-0.5`} />
               <p className={`text-xs leading-relaxed ${
                 (effects.accuracy_retained_pct || 0) > 98 ? "text-success-light" : 
                 (effects.accuracy_retained_pct || 0) >= 90 ? "text-warning-light" : "text-danger-light"
