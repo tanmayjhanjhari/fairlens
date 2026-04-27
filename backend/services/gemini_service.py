@@ -29,6 +29,228 @@ _model = genai.GenerativeModel("gemini-2.0-flash")
 class GeminiService:
     """Stateless wrapper around the Gemini 2.0 Flash model."""
 
+    # ── Fallback Methods ──────────────────────────────────────────────────────
+
+    def _fallback_explanation(self, sensitive_attr: str, metrics: dict,
+                               plain_reason: str, scenario: str) -> str:
+        """Generate plain-English explanation from data when Gemini unavailable."""
+        spd = metrics.get("SPD", 0) or 0
+        di = metrics.get("DI", 1) or 1
+        severity = metrics.get("severity", "unknown")
+        group_stats = metrics.get("group_stats", {})
+        
+        # Find best and worst groups
+        if group_stats:
+            sorted_groups = sorted(group_stats.items(),
+                                   key=lambda x: x[1].get("positive_rate", 0))
+            worst_group = sorted_groups[0]
+            best_group = sorted_groups[-1]
+            worst_name = worst_group[0]
+            worst_rate = worst_group[1].get("positive_rate", 0)
+            best_name = best_group[0]
+            best_rate = best_group[1].get("positive_rate", 0)
+            gap_pct = round((best_rate - worst_rate) * 100, 1)
+            
+            para1 = (
+                f"In this {scenario} dataset, '{sensitive_attr}' shows a "
+                f"{severity}-severity bias. The group '{best_name}' receives "
+                f"positive outcomes {best_rate:.0%} of the time, while "
+                f"'{worst_name}' receives them only {worst_rate:.0%} of the time "
+                f"— a gap of {gap_pct} percentage points."
+            )
+        else:
+            gap_pct = round(abs(spd) * 100, 1)
+            para1 = (
+                f"In this {scenario} dataset, '{sensitive_attr}' shows a "
+                f"{severity}-severity bias with a {gap_pct}% outcome gap "
+                f"between demographic groups."
+            )
+        
+        # Legal flag
+        if di < 0.8:
+            legal_note = (
+                f"The Disparate Impact ratio is {di:.3f}, which falls below "
+                f"the legal threshold of 0.8 (the '80% rule' used in employment "
+                f"and lending law). This level of disparity may expose the "
+                f"organization to regulatory risk."
+            )
+        else:
+            legal_note = (
+                f"The Disparate Impact ratio is {di:.3f}, which is above the "
+                f"legal 0.8 threshold, meaning the disparity is less likely to "
+                f"trigger regulatory concern — but the outcome gap still warrants "
+                f"attention."
+            )
+        
+        # Root cause
+        if plain_reason and "correlates" in plain_reason.lower():
+            cause = (
+                f"The likely cause is that another feature in the dataset acts "
+                f"as a hidden stand-in for '{sensitive_attr}'. {plain_reason} "
+                f"This means even if '{sensitive_attr}' is removed from the model, "
+                f"the bias can persist through this proxy feature."
+            )
+        else:
+            cause = (
+                f"The bias likely reflects historical patterns in the training data "
+                f"where '{sensitive_attr}' was correlated with outcomes — possibly "
+                f"due to systemic factors outside the model itself. "
+                f"{plain_reason}"
+            )
+        
+        return f"{para1}\n\n{legal_note}\n\n{cause}"
+
+    def _fallback_action_plan(self, session_data: dict) -> str:
+        """Generate specific action plan from data when Gemini unavailable."""
+        metrics_per_attr = session_data.get("metrics_per_attr", {})
+        mitigation = session_data.get("mitigation", {})
+        winner = mitigation.get("winner", "reweigh")
+        scenario = session_data.get("scenario", "this dataset")
+        
+        lines = []
+        for i, (attr, m) in enumerate(metrics_per_attr.items(), 1):
+            spd = abs(m.get("SPD", 0) or 0)
+            di = m.get("DI", 1) or 1
+            severity = m.get("severity", "unknown")
+            proxies = m.get("proxy_features", [])
+            top_proxy = proxies[0].get("feature") if proxies else None
+            group_stats = m.get("group_stats", {})
+            
+            if group_stats:
+                sorted_g = sorted(group_stats.items(),
+                                  key=lambda x: x[1].get("positive_rate", 0))
+                worst = sorted_g[0][0] if sorted_g else "minority group"
+                best = sorted_g[-1][0] if sorted_g else "majority group"
+            else:
+                worst, best = "disadvantaged group", "advantaged group"
+            
+            if severity == "high":
+                action = (
+                    f"Step {i} — Fix '{attr}' bias (HIGH severity, SPD={spd:.3f}): "
+                    f"The group '{worst}' is significantly disadvantaged compared to "
+                    f"'{best}' in {scenario}."
+                )
+                if top_proxy:
+                    action += (
+                        f" Remove or transform '{top_proxy}' from your feature set "
+                        f"— it is acting as a hidden proxy for '{attr}'."
+                    )
+            elif severity == "medium":
+                action = (
+                    f"Step {i} — Review '{attr}' bias (MEDIUM severity, SPD={spd:.3f}): "
+                    f"A {spd:.0%} outcome gap exists between groups."
+                )
+                if di < 0.8:
+                    action += (
+                        f" DI={di:.3f} is below the legal 0.8 threshold — "
+                        f"document this finding for compliance records."
+                    )
+            else:
+                action = (
+                    f"Step {i} — Monitor '{attr}' (LOW severity, SPD={spd:.3f}): "
+                    f"Bias is within acceptable range but should be tracked "
+                    f"over time as the model is retrained."
+                )
+            lines.append(action)
+        
+        # Mitigation step
+        mitigation_step = (
+            f"Step {len(lines)+1} — Apply {winner} mitigation technique "
+            f"before retraining. This technique was identified as best for "
+            f"this dataset based on bias reduction vs accuracy trade-off analysis."
+        )
+        lines.append(mitigation_step)
+        
+        # Monitoring step  
+        lines.append(
+            f"Step {len(lines)+1} — Re-audit after retraining using ByUs "
+            f"to verify bias reduction. Set up quarterly fairness reviews "
+            f"as part of your model governance process."
+        )
+        
+        return "\n\n".join(lines)
+
+    def _fallback_chat(self, user_message: str, session_context: dict) -> str:
+        """Rule-based chat response when Gemini unavailable."""
+        msg = user_message.lower()
+        metrics = session_context.get("metrics_per_attr", {})
+        scenario = session_context.get("scenario", "this dataset")
+        audit_score = session_context.get("audit_score", "N/A")
+        
+        if any(w in msg for w in ["spd","statistical parity","parity difference"]):
+            attr_info = "; ".join([
+                f"{a}: SPD={m.get('SPD','N/A')}"
+                for a, m in metrics.items()
+            ])
+            return (f"Statistical Parity Difference (SPD) measures the outcome "
+                    f"rate gap between groups. Ideal value is 0. "
+                    f"For your dataset: {attr_info}. "
+                    f"Values above 0.1 indicate meaningful bias.")
+        
+        elif any(w in msg for w in ["di","disparate impact","legal","80%","80 percent"]):
+            flags = [a for a, m in metrics.items() if (m.get("DI") or 1) < 0.8]
+            if flags:
+                return (f"Disparate Impact (DI) measures the ratio of positive "
+                        f"outcomes between groups. The legal threshold is 0.8. "
+                        f"Your dataset fails this threshold for: {', '.join(flags)}. "
+                        f"This means these attributes may create legal liability.")
+            else:
+                return ("Your dataset passes the legal 0.8 DI threshold for all "
+                        "attributes. However, passing the legal threshold doesn't "
+                        "mean no bias exists — SPD may still show meaningful gaps.")
+        
+        elif any(w in msg for w in ["mitigation","fix","reduce","reweigh","threshold"]):
+            return (f"Two mitigation techniques were applied to your dataset. "
+                    f"Reweighing adjusts training data weights so each group "
+                    f"is represented fairly. Threshold adjustment finds per-group "
+                    f"decision thresholds that equalize true positive rates. "
+                    f"Check the Remediation page to compare their results "
+                    f"and accuracy trade-offs.")
+        
+        elif any(w in msg for w in ["score","grade","audit"]):
+            return (f"Your Bias Audit Score is {audit_score}/100. "
+                    f"This composite score combines SPD, DI, and EOD penalties "
+                    f"across all sensitive attributes. Grade A (85+) is fair, "
+                    f"B (70-84) has minor issues, C (50-69) has moderate bias, "
+                    f"F (below 50) requires immediate action.")
+        
+        elif any(w in msg for w in ["why","cause","reason","proxy","how"]):
+            explanations = []
+            for attr, m in metrics.items():
+                proxies = m.get("proxy_features", [])
+                if proxies:
+                    top = proxies[0]
+                    explanations.append(
+                        f"For '{attr}': '{top.get('feature')}' is the strongest "
+                        f"proxy feature (r={top.get('correlation','N/A'):.2f})"
+                    )
+            if explanations:
+                return ("Bias often exists because other features act as hidden "
+                        f"stand-ins for sensitive attributes. " +
+                        ". ".join(explanations) + ". Removing or transforming "
+                        "these proxy features can reduce indirect discrimination.")
+            else:
+                return ("Bias in this dataset likely reflects historical patterns "
+                        "in how outcomes were recorded, rather than a single "
+                        "proxy feature. The training data itself may embed "
+                        "systemic inequalities from the real world.")
+        
+        else:
+            # Generic helpful response
+            attrs = list(metrics.keys())
+            high_attrs = [a for a,m in metrics.items() if m.get("severity")=="high"]
+            if high_attrs:
+                return (f"Your dataset shows HIGH severity bias in: "
+                        f"{', '.join(high_attrs)}. The Bias Audit Score is "
+                        f"{audit_score}/100. I can explain specific metrics "
+                        f"(try asking about SPD, DI, or mitigation techniques), "
+                        f"or why bias exists in your data.")
+            else:
+                return (f"Your dataset analysis is complete. Bias Audit Score: "
+                        f"{audit_score}/100. Sensitive attributes analyzed: "
+                        f"{', '.join(attrs)}. Ask me about specific metrics, "
+                        f"mitigation results, or what actions to take.")
+
     # ── Scenario detection ────────────────────────────────────────────────────
 
     def detect_scenario(self, columns: list[str]) -> dict[str, Any]:
@@ -52,20 +274,26 @@ class GeminiService:
             raw = response.text.strip()
             return self._parse_json(raw)
         except Exception as e:
-            error_str = str(e).lower()
-            if "quota" in error_str or "429" in error_str:
-                err_msg = "⚠️ Gemini API daily quota reached. The free tier allows 1,500 requests/day. Try again tomorrow or upgrade your API key at aistudio.google.com"
-            elif "api_key" in error_str or "403" in error_str:
-                err_msg = "⚠️ Gemini API key error. Check that GEMINI_API_KEY is set correctly in your backend .env file."
-            elif "invalid" in error_str:
-                err_msg = "⚠️ Invalid request to Gemini. The context may be too large. Try refreshing and starting a new analysis."
+            # Rule-based scenario detection from column names
+            cols_lower = [c.lower() for c in columns]
+            if any(w in cols_lower for w in ["loan","credit","approved","default","risk","debt"]):
+                return {"scenario": "Lending", "confidence_pct": 80,
+                        "reason": "Detected lending-related columns"}
+            elif any(w in cols_lower for w in ["hired","job","salary","occupation","employed"]):
+                return {"scenario": "Hiring", "confidence_pct": 80,
+                        "reason": "Detected employment-related columns"}
+            elif any(w in cols_lower for w in ["diagnosis","disease","patient","hospital","medical"]):
+                return {"scenario": "Healthcare", "confidence_pct": 80,
+                        "reason": "Detected healthcare-related columns"}
+            elif any(w in cols_lower for w in ["recid","crime","arrest","prison","sentence"]):
+                return {"scenario": "Criminal Justice", "confidence_pct": 80,
+                        "reason": "Detected criminal justice columns"}
+            elif any(w in cols_lower for w in ["grade","gpa","score","admit","student"]):
+                return {"scenario": "Education", "confidence_pct": 80,
+                        "reason": "Detected education-related columns"}
             else:
-                err_msg = f"⚠️ Gemini error: {str(e)[:200]}. Check your backend terminal for full details."
-            return {
-                "scenario": "other",
-                "confidence_pct": 50,
-                "reason": err_msg,
-            }
+                return {"scenario": "General Classification", "confidence_pct": 60,
+                        "reason": "Could not determine specific scenario from column names"}
 
     # ── Bias explanation ──────────────────────────────────────────────────────
 
@@ -108,15 +336,10 @@ Do NOT start with 'Sure' or 'Certainly' or 'Of course'."""
             response = _model.generate_content(prompt)
             return response.text.strip()
         except Exception as e:
-            error_str = str(e).lower()
-            if "quota" in error_str or "429" in error_str:
-                return "⚠️ Gemini API daily quota reached. The free tier allows 1,500 requests/day. Try again tomorrow or upgrade your API key at aistudio.google.com"
-            elif "api_key" in error_str or "403" in error_str:
-                return "⚠️ Gemini API key error. Check that GEMINI_API_KEY is set correctly in your backend .env file."
-            elif "invalid" in error_str:
-                return "⚠️ Invalid request to Gemini. The context may be too large. Try refreshing and starting a new analysis."
-            else:
-                return f"⚠️ Gemini error: {str(e)[:200]}. Check your backend terminal for full details."
+            # Use rule-based fallback — never show error to user
+            return self._fallback_explanation(
+                sensitive_attr, metrics, plain_reason, scenario
+            )
 
     # ── Action Plan ───────────────────────────────────────────────────────────
 
@@ -163,32 +386,8 @@ Make each step actionable and specific to the findings above."""
         try:
             response = _model.generate_content(prompt)
             return response.text.strip()
-        except Exception:
-            # Fallback: generate rule-based specific plan
-            lines = []
-            
-            attr_points = []
-            for attr, m in metrics_summary.items():
-                if "error" in m: continue
-                proxy_list = m.get("proxy_features", [])
-                top_proxy = proxy_list[0].get("feature") if proxy_list else None
-                
-                # Check for either lowercase or uppercase SPD
-                spd = m.get("spd") if "spd" in m else m.get("SPD", 0)
-                
-                if top_proxy:
-                    attr_points.append(f"For '{attr}': Remove or neutralize '{top_proxy}' from your model features — it acts as a hidden discriminator (SPD gap: {abs(spd):.1%}).")
-                else:
-                    attr_points.append(f"For '{attr}': Review data collection practices to understand the {abs(spd):.1%} outcome gap.")
-            
-            if attr_points:
-                lines.append("1. Feature Engineering: " + " ".join(attr_points))
-            else:
-                lines.append("1. Feature Engineering: Review your dataset for correlated proxy features that may indirectly leak sensitive demographic information.")
-                
-            lines.append(f"2. Apply Mitigation: Implement the {winner} mitigation technique before retraining your model to rebalance group representation and improve fairness.")
-            lines.append("3. Continuous Monitoring: Re-audit the model after retraining to confirm bias reduction before final deployment, and set up ongoing fairness checks.")
-            return "\n\n".join(lines)
+        except Exception as e:
+            return self._fallback_action_plan(session_data)
 
     # ── Copilot chat ──────────────────────────────────────────────────────────
 
@@ -239,14 +438,15 @@ Rules:
 
         except Exception as e:
             error_str = str(e).lower()
-            if "quota" in error_str or "429" in error_str:
-                return "⚠️ Gemini API daily quota reached. The free tier allows 1,500 requests/day. Try again tomorrow or upgrade your API key at aistudio.google.com"
+            if "quota" in error_str or "429" in error_str or "exhausted" in error_str:
+                # Use rule-based chat — never show quota error to user
+                return self._fallback_chat(user_message, session_context)
             elif "api_key" in error_str or "403" in error_str:
-                return "⚠️ Gemini API key error. Check that GEMINI_API_KEY is set correctly in your backend .env file."
-            elif "invalid" in error_str:
-                return "⚠️ Invalid request to Gemini. The context may be too large. Try refreshing and starting a new analysis."
+                return ("I'm having trouble with my AI connection. "
+                        "Your analysis results are still fully available — "
+                        "check the metrics and mitigation pages for complete findings.")
             else:
-                return f"⚠️ Gemini error: {str(e)[:200]}. Check your backend terminal for full details."
+                return self._fallback_chat(user_message, session_context)
 
     # ── JSON parsing helper ───────────────────────────────────────────────────
 
