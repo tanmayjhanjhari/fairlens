@@ -13,13 +13,13 @@
 
 ByUs is an open-source web platform that helps you detect, understand, and fix bias in your datasets and machine learning models. Upload your dataset (CSV, Excel, JSON, ZIP, and more), select your target variable and sensitive attributes, and ByUs will:
 
-- Compute industry-standard fairness metrics (SPD, DI, EOD, AOD)
-- Auto-detect your dataset's domain (hiring, lending, healthcare, education) using Gemini AI
-- Generate a composite Bias Audit Score (0-100, graded A/B/C/F)
-- Explain the root causes of bias in plain English
-- Run reweighing and threshold adjustment mitigation techniques side-by-side
-- Export a professional PDF audit report
-- Let you chat with the Gemini Bias Copilot for contextual guidance
+- **Compute Industry-Standard Metrics**: Instantly calculate Statistical Parity Difference (SPD), Disparate Impact (DI), Equal Opportunity Difference (EOD), and Average Odds Difference (AOD).
+- **Deep Contextual Explanations**: Beyond numbers, ByUs provides plain-English narratives explaining *why* bias exists, including proxy feature detection and data imbalance analysis.
+- **AI-Powered Domain Detection**: Automatically identifies the dataset's scenario (Hiring, Lending, Healthcare, etc.) to tailor the analysis.
+- **Bias Mitigation Suite**: Run Reweighing and Threshold Adjustment strategies side-by-side and compare results with interactive trade-off charts.
+- **Gemini Bias Copilot**: A real-time AI assistant to answer questions about fairness metrics and provide remediation guidance.
+- **AI Resilience**: Robust rule-based fallbacks ensure the platform remains fully functional even during AI service quotas or downtime.
+- **Professional PDF Reports**: Export high-fidelity audit reports with automated findings and action plans.
 
 ---
 
@@ -165,6 +165,8 @@ npm run dev
 byus/
 +-- frontend/          # React 18 + Vite frontend
 +-- backend/           # FastAPI backend
++-- deploy-gcp.ps1      # Automated GCP Deployment (PowerShell)
++-- deploy-gcp.sh       # Automated GCP Deployment (Bash)
 +-- REQUIREMENTS.md    # Full requirements documentation
 +-- DEMO.md            # 3-minute demo script for judges
 +-- README.md          # This file
@@ -199,19 +201,27 @@ Key endpoints:
 
 ## Deployment
 
-### Frontend (Vercel)
+### Google Cloud Run (Recommended)
 
-1. Connect your GitHub repository to Vercel
-2. Set root directory to `frontend/`
-3. Add environment variable `VITE_API_BASE_URL` pointing to your Railway backend URL
-4. Deploy — Vercel auto-deploys on push to `main`
+ByUs is optimized for **Google Cloud**. You can deploy the entire stack using the provided automation scripts:
 
-### Backend (Railway)
+1. **Install Google Cloud SDK** and run `gcloud init`.
+2. Run the deployment script from the root directory:
+   - **Windows**: `./deploy-gcp.ps1`
+   - **Linux/macOS**: `./deploy-gcp.sh`
+3. The script will build your Docker containers, push them to Google Artifact Registry, and deploy them to Cloud Run.
 
-1. Connect your GitHub repository to Railway
-2. Set root directory to `backend/`
-3. Add all environment variables from `backend/.env.example`
-4. Railway auto-deploys on push to `main`
+### Manual Deployment (Vercel/Railway)
+
+**Frontend (Vercel)**:
+1. Connect your GitHub repository to Vercel.
+2. Set root directory to `frontend/`.
+3. Add `VITE_API_BASE_URL` environment variable.
+
+**Backend (Railway)**:
+1. Connect your GitHub repository to Railway.
+2. Set root directory to `backend/`.
+3. Add all variables from `backend/.env.example`.
 
 ---
 
